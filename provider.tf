@@ -5,5 +5,3 @@ provider "aws" {
 provider "aws" {
   alias = "audit"
 }
-
-provider "aws" {}
