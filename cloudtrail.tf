@@ -5,7 +5,7 @@ resource "aws_cloudtrail" "main" {
   is_multi_region_trail         = true
   is_organization_trail         = true
   enable_log_file_validation    = true
-  kms_key_id                    = "${aws_kms_key.cloudtrail.arn}"
+  kms_key_id                    = "${aws_kms_alias.cloudtrail.arn}"
   event_selector {
     include_management_events = true
     data_resource {
@@ -17,6 +17,9 @@ resource "aws_cloudtrail" "main" {
 
 data "aws_caller_identity" "audit" {
   provider = aws.audit
+}
+data "aws_caller_identity" "master" {
+  provider = aws.master
 }
 
 data "terraform_remote_state" "globals" {
@@ -30,6 +33,11 @@ data "terraform_remote_state" "globals" {
   }
 }
 
+resource "aws_kms_alias" "cloudtrail" {
+  name          = "alias/cloudtrail"
+  target_key_id = "${aws_kms_key.cloudtrail.key_id}"
+}
+
 resource "aws_kms_key" "cloudtrail" {
   policy = <<POLICY
 {
@@ -41,9 +49,9 @@ resource "aws_kms_key" "cloudtrail" {
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam::${data.aws_caller_identity.audit.account_id}:role/${var.client_name}-role-console-breakglass",
-          "arn:aws:iam::${data.aws_caller_identity.audit.account_id}:role/${var.client_name}-role-api-fulladmin",
-          "arn:aws:iam::${data.aws_caller_identity.audit.account_id}:role/${var.client_name}-role-api-secadmin"
+          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:role/${var.client_name}-role-console-breakglass",
+          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:role/${var.client_name}-role-api-fulladmin",
+          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:role/${var.client_name}-role-api-secadmin"
         ]
       },
       "Action": [
@@ -142,6 +150,11 @@ POLICY
 resource "aws_kms_key" "s3" {
 }
 
+resource "aws_kms_alias" "s3" {
+  name = "alias/s3"
+  target_key_id = "${aws_kms_key.s3.key_id}"
+}
+
 resource "aws_s3_bucket" "main" {
   provider = aws.audit
 
@@ -153,7 +166,7 @@ resource "aws_s3_bucket" "main" {
   server_side_encryption_configuration {
     rule {
       apply_server_side_encryption_by_default {
-        kms_master_key_id = "${aws_kms_key.s3.arn}"
+        kms_master_key_id = "${aws_kms_alias.s3.arn}"
         sse_algorithm = "aws:kms"
       }
     }
@@ -170,7 +183,7 @@ resource "aws_s3_bucket" "main" {
             "Sid": "AWSCloudTrailBucketPermissionsCheck",
             "Effect": "Allow",
             "Principal": {
-              "Service": "cloudtrail.amazonaws.com"
+              "Service": ["cloudtrail.amazonaws.com"]
             },
             "Action": "s3:GetBucketAcl",
             "Resource": "arn:aws:s3:::s3-${var.client_name}-cloudtrail"
@@ -179,7 +192,7 @@ resource "aws_s3_bucket" "main" {
             "Sid": "AWSCloudTrailBucketDelivery",
             "Effect": "Allow",
             "Principal": {
-              "Service": "cloudtrail.amazonaws.com"
+              "Service": ["cloudtrail.amazonaws.com"]
             },
             "Action": "s3:PutObject",
             "Resource": [
@@ -196,7 +209,7 @@ resource "aws_s3_bucket" "main" {
             "Action": "s3:*",
             "Effect": "Deny",
             "Principal": "*",
-            "Resource": "arn:aws:s3::s3-${var.client_name}-cloudtrail/*",
+            "Resource": "arn:aws:s3:::s3-${var.client_name}-cloudtrail/*",
             "Condition": {"Bool": {"aws:SecureTransport": false}}
         },
         {
@@ -209,14 +222,11 @@ resource "aws_s3_bucket" "main" {
             ],
             "Effect": "Allow",
             "Principal": {
-                "AWS":
-                    [
-                        "arn:aws:iam::${data.aws_caller_identity.audit.account_id}:root"
-                    ]
+                "AWS": "arn:aws:iam::${data.aws_caller_identity.audit.account_id}:root"
             },
             "Resource": [
-                "arn:aws:s3::s3-${var.client_name}-cloudtrail/*",
-                "arn:aws:s3::s3-${var.client_name}-cloudtrail"
+                "arn:aws:s3:::s3-${var.client_name}-cloudtrail/*",
+                "arn:aws:s3:::s3-${var.client_name}-cloudtrail"
             ],
             "Condition": {"Bool": {"aws:SecureTransport": false}}
         }
