@@ -75,7 +75,7 @@ resource "aws_kms_key" "cloudtrail" {
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam::${data.aws_caller_identity.audit.account_id}:role/${var.client_name}-role-api-secadmin"
+          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:role/${var.client_name}-role-console-breakglass"
         ]
       },
       "Action": [
