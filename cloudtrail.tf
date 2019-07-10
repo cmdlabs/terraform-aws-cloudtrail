@@ -49,9 +49,7 @@ resource "aws_kms_key" "cloudtrail" {
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:role/${var.client_name}-role-console-breakglass",
-          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:role/${var.client_name}-role-api-fulladmin",
-          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:role/${var.client_name}-role-api-secadmin"
+          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:role/${var.client_name}-role-console-breakglass"
         ]
       },
       "Action": [
@@ -90,10 +88,11 @@ resource "aws_kms_key" "cloudtrail" {
       "Resource": "*"
     },
     {
+      "Sid": "CloudTrailLogEncryption",
       "Action": "kms:GenerateDataKey*",
       "Condition": {
         "ForAllValues:StringLike": {
-          "kms": ${jsonencode([for id in data.terraform_remote_state.globals.outputs.aws_account_ids : join("", ["arn:aws:cloudtrail:*:", id, ":trail/*"])])}
+          "kms:EncryptionContext:aws:cloudtrail:arn": ${jsonencode([for id in data.terraform_remote_state.globals.outputs.aws_account_ids : join("", ["arn:aws:cloudtrail:*:", id, ":trail/*"])])}
         }
       },
       "Effect": "Allow",
@@ -102,8 +101,7 @@ resource "aws_kms_key" "cloudtrail" {
           "cloudtrail.amazonaws.com"
         ]
       },
-      "Resource": "*",
-      "Sid": "CloudTrailLogEncryption"
+      "Resource": "*"
     },
     {
       "Sid": "AllowExternalAccountAccess",
