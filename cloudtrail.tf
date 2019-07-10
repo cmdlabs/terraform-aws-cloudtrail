@@ -25,8 +25,6 @@ data "aws_caller_identity" "master" {
 }
 
 data "terraform_remote_state" "globals" {
-  provider = aws.master
-
   backend   = "s3"
   workspace = "global"
   config = {
