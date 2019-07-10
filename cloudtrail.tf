@@ -1,4 +1,6 @@
 resource "aws_cloudtrail" "main" {
+  provider = aws.master
+
   name                          = "org-trail"
   s3_bucket_name                = "${aws_s3_bucket.main.id}"
   include_global_service_events = true
@@ -23,6 +25,8 @@ data "aws_caller_identity" "master" {
 }
 
 data "terraform_remote_state" "globals" {
+  provider = aws.master
+
   backend   = "s3"
   workspace = "global"
   config = {
@@ -34,11 +38,15 @@ data "terraform_remote_state" "globals" {
 }
 
 resource "aws_kms_alias" "cloudtrail" {
+  provider = aws.master
+
   name          = "alias/cloudtrail"
   target_key_id = "${aws_kms_key.cloudtrail.key_id}"
 }
 
 resource "aws_kms_key" "cloudtrail" {
+  provider = aws.master
+
   policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -146,9 +154,12 @@ POLICY
 }
 
 resource "aws_kms_key" "s3" {
+  provider = aws.master
 }
 
 resource "aws_kms_alias" "s3" {
+  provider = aws.master
+
   name = "alias/s3"
   target_key_id = "${aws_kms_key.s3.key_id}"
 }
