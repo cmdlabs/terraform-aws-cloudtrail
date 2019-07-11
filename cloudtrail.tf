@@ -51,111 +51,102 @@ locals {
 resource "aws_kms_key" "cloudtrail" {
   provider = aws.master
 
-  policy = <<POLICY
-{
-  "Version": "2012-10-17",
-  "Id": "key-CLOUDTRAIL",
-  "Statement": [
-    {
-      "Sid": "Allow administration of the key",
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": [
-          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:role/${var.client_name}-role-console-breakglass",
-          "${local.my_role_arn}"
-        ]
-      },
-      "Action": [
-        "kms:Create*",
-        "kms:Describe*",
-        "kms:Enable*",
-        "kms:List*",
-        "kms:Put*",
-        "kms:Update*",
-        "kms:Revoke*",
-        "kms:Disable*",
-        "kms:Get*",
-        "kms:Delete*",
-        "kms:ScheduleKeyDeletion",
-        "kms:CancelKeyDeletion",
-        "kms:TagResource",
-        "kms:UntagResource"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "Allow use of the key",
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": [
-          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:role/${var.client_name}-role-console-breakglass"
-        ]
-      },
-      "Action": [
-        "kms:Encrypt",
-        "kms:Decrypt",
-        "kms:ReEncrypt*",
-        "kms:GenerateDataKey*",
-        "kms:DescribeKey"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "CloudTrailLogEncryption",
-      "Action": "kms:GenerateDataKey*",
-      "Condition": {
-        "ForAllValues:StringLike": {
-          "kms:EncryptionContext:aws:cloudtrail:arn": ${jsonencode([for id in data.terraform_remote_state.globals.outputs.aws_account_ids : join("", ["arn:aws:cloudtrail:*:", id, ":trail/*"])])}
-        }
-      },
-      "Effect": "Allow",
-      "Principal": {
-        "Service": [
-          "cloudtrail.amazonaws.com"
-        ]
-      },
-      "Resource": "*"
-    },
-    {
-      "Sid": "AllowExternalAccountAccess",
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": [
-          "arn:aws:iam::${data.terraform_remote_state.globals.outputs.aws_account_ids.master}:root"
-        ]
-      },
-      "Action": [
-        "kms:Encrypt",
-        "kms:Decrypt",
-        "kms:ReEncrypt*",
-        "kms:GenerateDataKey*",
-        "kms:DescribeKey"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "AllowExternalAccountsToAttachPersistentResources",
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": [
-          "arn:aws:iam::${data.terraform_remote_state.globals.outputs.aws_account_ids.master}:root"
-        ]
-      },
-      "Action": [
-        "kms:CreateGrant",
-        "kms:ListGrants",
-        "kms:RevokeGrant"
-      ],
-      "Resource": "*",
-      "Condition": {
-        "Bool": {
-          "kms:GrantIsForAWSResource": true
-        }
-      }
+data "aws_iam_policy_document" "cloudtrail" {
+  statement {
+    sid    = "AllowExternalAccountAccess"
+    effect = "Allow"
+    principals {
+      type = "AWS"
+      identifiers = [
+        "arn:aws:iam::${data.aws_caller_identity.master.account_id}:root"
+      ]
     }
-  ]
+    actions   = ["kms:*"]
+    resources = ["*"]
+  }
+  statement {
+    sid    = "Allow administration of the key"
+    effect = "Allow"
+    principals {
+      type = "AWS"
+      identifiers = [
+        "arn:aws:iam::${data.aws_caller_identity.master.account_id}:role/${var.client_name}-role-console-breakglass",
+      ]
+    }
+    actions = [
+      "kms:Create*",
+      "kms:Describe*",
+      "kms:Enable*",
+      "kms:List*",
+      "kms:Put*",
+      "kms:Update*",
+      "kms:Revoke*",
+      "kms:Disable*",
+      "kms:Get*",
+      "kms:Delete*",
+      "kms:ScheduleKeyDeletion",
+      "kms:CancelKeyDeletion",
+      "kms:TagResource",
+      "kms:UntagResource",
+    ]
+    resources = ["*"]
+  }
+  statement {
+    sid    = "Allow use of the key"
+    effect = "Allow"
+    principals {
+      type = "AWS"
+      identifiers = [
+        "arn:aws:iam::${data.aws_caller_identity.audit.account_id}:role/${var.client_name}-role-api-secadmin"
+      ]
+    }
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey",
+    ]
+    resources = ["*"]
+  }
+  statement {
+    sid    = "CloudTrailLogEncryption"
+    effect = "Allow"
+    condition {
+      test     = "ForAllValues:StringLike"
+      variable = "kms:EncryptionContext:aws:cloudtrail:arn"
+      values   = [for id in data.terraform_remote_state.globals.outputs.aws_account_ids : join("", ["arn:aws:cloudtrail:*:", id, ":trail/*"])]
+    }
+    actions = [
+      "kms:GenerateDataKey*",
+    ]
+    resources = ["*"]
+  }
+  statement {
+    sid    = "AllowExternalAccountsToAttachPersistentResources"
+    effect = "Allow"
+    principals {
+      type = "AWS"
+      identifiers = [
+        "arn:aws:iam::${data.aws_caller_identity.master.account_id}:root"
+      ]
+    }
+    actions = [
+      "kms:CreateGrant",
+      "kms:ListGrants",
+      "kms:RevokeGrant"
+    ]
+    condition {
+      test     = "Bool"
+      variable = "kms:GrantIsForAWSResource"
+      values   = ["true"]
+    }
+    resources = ["*"]
+  }
 }
-POLICY
+
+resource "aws_kms_key" "cloudtrail" {
+  policy = "${data.aws_iam_policy_document.cloudtrail.json}"
 }
 
 resource "aws_kms_key" "s3" {
@@ -163,16 +154,20 @@ resource "aws_kms_key" "s3" {
 }
 
 resource "aws_kms_alias" "s3" {
+<<<<<<< Updated upstream
   provider = aws.master
 
   name = "alias/s3"
+=======
+  name          = "alias/s3"
+>>>>>>> Stashed changes
   target_key_id = "${aws_kms_key.s3.key_id}"
 }
 
 resource "aws_s3_bucket" "main" {
   provider = aws.audit
 
-  bucket = "s3-${var.client_name}-cloudtrail"
+  bucket        = "s3-${var.client_name}-cloudtrail"
   force_destroy = true
   versioning {
     enabled = true
@@ -181,7 +176,7 @@ resource "aws_s3_bucket" "main" {
     rule {
       apply_server_side_encryption_by_default {
         kms_master_key_id = "${aws_kms_alias.s3.arn}"
-        sse_algorithm = "aws:kms"
+        sse_algorithm     = "aws:kms"
       }
     }
   }
