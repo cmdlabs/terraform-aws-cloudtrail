@@ -42,6 +42,11 @@ resource "aws_kms_alias" "cloudtrail" {
   target_key_id = "${aws_kms_key.cloudtrail.key_id}"
 }
 
+# required by AWS, prevents you from locking yourself out from a KMS key
+data "aws_caller_identity" "current" {
+  provider = aws.master
+}
+
 resource "aws_kms_key" "cloudtrail" {
   provider = aws.master
 
@@ -55,7 +60,8 @@ resource "aws_kms_key" "cloudtrail" {
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:role/${var.client_name}-role-console-breakglass"
+          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:role/${var.client_name}-role-console-breakglass",
+          "${data.aws_caller_identity.current.arn}"
         ]
       },
       "Action": [
