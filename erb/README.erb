@@ -1,15 +1,19 @@
 <!-- vim: set ft=markdown: -->
+<%
+  # A method to reformat the examples source
+  # code suitable for the public doc version.
+  #
+  def filter(remote, file_name)
+    %x[sed -E '
+      s!source( +)=.*!source\\1= "#{remote}"!
+      ' #{file_name}]
+  end
+
+  remote = %x{git remote -v}.split("\n")[0].split[1]
+-%>
 # terraform-aws-cloudtrail
 
-#### Table of contents
-
-1. [Overview](#overview)
-2. [CloudTrail](#cloudtrail)
-    * [Resources docs](#resources-docs)
-    * [Inputs](#inputs)
-    * [Outputs](#outputs)
-    * [Examples](#examples)
-3. [License](#license)
+<%= %x{ruby erb/toc.rb erb/README.erb} -%>
 
 ## Overview
 
@@ -18,12 +22,11 @@ This repository provides an automated framework for deploying and configuring AW
 ## CloudTrail
 
 This module deploys an organisation-wide CloudTrail.
-
   - CloudTrail
   - S3 bucket with object locking
   - KMS keys
 
-Terraform >= 0.12.0 is required for this module.
+Terraform <%= %x[awk -F '"' '/required_version/ {print $2}' versions.tf].chomp -%> is required for this module.
 
 ### Resources docs
 
@@ -37,11 +40,7 @@ The below outlines the current parameters and defaults.
 
 | Name | Description | Type | Default | Required |
 |------|-------------|:----:|:-------:|:--------:|
-|client_name|Name of the organisation, used in the bucket name to ensure there are no conflicts|string|""|No|
-|global_state_bucket|The name of the bucket containing the global module state|string|""|No|
-|global_state_key|The key of the global module state as defined in the backend|string|""|No|
-|global_state_region|The region of the bucket containing the global module state|string|""|No|
-|global_state_profile|The profile to be used to access the global module state bucket|string|""|No|
+<%= %x{ruby erb/variables2md.rb variables.tf} -%>
 
 ### Outputs
 
