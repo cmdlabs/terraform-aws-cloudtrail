@@ -191,60 +191,72 @@ resource "aws_s3_bucket" "main" {
 
   policy = <<POLICY
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "AWSCloudTrailBucketPermissionsCheck",
-            "Effect": "Allow",
-            "Principal": {
-              "Service": ["cloudtrail.amazonaws.com"]
-            },
-            "Action": "s3:GetBucketAcl",
-            "Resource": "arn:aws:s3:::s3-${var.client_name}-cloudtrail"
-        },
-        {
-            "Sid": "AWSCloudTrailBucketDelivery",
-            "Effect": "Allow",
-            "Principal": {
-              "Service": ["cloudtrail.amazonaws.com"]
-            },
-            "Action": "s3:PutObject",
-            "Resource": [
-                "arn:aws:s3:::s3-${var.client_name}-cloudtrail/AWSLogs/*"
-            ],
-            "Condition": {
-                "StringEquals": {
-                    "s3:x-amz-acl": "bucket-owner-full-control"
-                }
-            }
-        },
-        {
-            "Sid": "DenyNonSecureTransport",
-            "Action": "s3:*",
-            "Effect": "Deny",
-            "Principal": "*",
-            "Resource": "arn:aws:s3:::s3-${var.client_name}-cloudtrail/*",
-            "Condition": {"Bool": {"aws:SecureTransport": false}}
-        },
-        {
-            "Sid": "AWSCloudTrailRead",
-            "Action": [
-                "s3:GetObject",
-                "s3:GetObjectVersion",
-                "s3:ListBucket",
-                "s3:ListBucketVersions"
-            ],
-            "Effect": "Allow",
-            "Principal": {
-                "AWS": "arn:aws:iam::${data.aws_caller_identity.audit.account_id}:root"
-            },
-            "Resource": [
-                "arn:aws:s3:::s3-${var.client_name}-cloudtrail/*",
-                "arn:aws:s3:::s3-${var.client_name}-cloudtrail"
-            ],
-            "Condition": {"Bool": {"aws:SecureTransport": false}}
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AWSCloudTrailBucketPermissionsCheck",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": [
+          "cloudtrail.amazonaws.com"
+        ]
+      },
+      "Action": "s3:GetBucketAcl",
+      "Resource": "arn:aws:s3:::s3-${var.client_name}-cloudtrail"
+    },
+    {
+      "Sid": "AWSCloudTrailBucketDelivery",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": [
+          "cloudtrail.amazonaws.com"
+        ]
+      },
+      "Action": "s3:PutObject",
+      "Resource": [
+        "arn:aws:s3:::s3-${var.client_name}-cloudtrail/AWSLogs/*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "s3:x-amz-acl": "bucket-owner-full-control"
         }
-    ]
+      }
+    },
+    {
+      "Sid": "DenyNonSecureTransport",
+      "Action": "s3:*",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Resource": "arn:aws:s3:::s3-${var.client_name}-cloudtrail/*",
+      "Condition": {
+        "Bool": {
+          "aws:SecureTransport": false
+        }
+      }
+    },
+    {
+      "Sid": "AWSCloudTrailRead",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:ListBucket",
+        "s3:ListBucketVersions"
+      ],
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::${data.aws_caller_identity.audit.account_id}:root"
+      },
+      "Resource": [
+        "arn:aws:s3:::s3-${var.client_name}-cloudtrail/*",
+        "arn:aws:s3:::s3-${var.client_name}-cloudtrail"
+      ],
+      "Condition": {
+        "Bool": {
+          "aws:SecureTransport": false
+        }
+      }
+    }
+  ]
 }
 POLICY
 }
