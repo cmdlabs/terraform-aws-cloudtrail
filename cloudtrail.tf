@@ -24,16 +24,7 @@ data "aws_caller_identity" "master" {
   provider = aws.master
 }
 
-data "terraform_remote_state" "globals" {
-  backend   = "s3"
-  workspace = "global"
-  config = {
-    bucket  = "${var.global_state_bucket}"
-    key     = "${var.global_state_key}"
-    region  = "${var.global_state_region}"
-    profile = "${var.global_state_profile}"
-  }
-}
+data "aws_organizations_organization" "master_account" {}
 
 resource "aws_kms_alias" "cloudtrail" {
   provider = aws.master
@@ -105,7 +96,7 @@ resource "aws_kms_key" "cloudtrail" {
       "Action": "kms:GenerateDataKey*",
       "Condition": {
         "ForAllValues:StringLike": {
-          "kms:EncryptionContext:aws:cloudtrail:arn": ${jsonencode([for id in data.terraform_remote_state.globals.outputs.aws_account_ids : join("", ["arn:aws:cloudtrail:*:", id, ":trail/*"])])}
+          "kms:EncryptionContext:aws:cloudtrail:arn": ${jsonencode([for id in data.aws_organizations_organization.master_account.accounts[*].id : join("", ["arn:aws:cloudtrail:*:", id, ":trail/*"])])}
         }
       },
       "Effect": "Allow",
@@ -121,7 +112,7 @@ resource "aws_kms_key" "cloudtrail" {
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam::${data.terraform_remote_state.globals.outputs.aws_account_ids.master}:root"
+          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:root" 
         ]
       },
       "Action": [
@@ -138,7 +129,7 @@ resource "aws_kms_key" "cloudtrail" {
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam::${data.terraform_remote_state.globals.outputs.aws_account_ids.master}:root"
+          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:root"
         ]
       },
       "Action": [
