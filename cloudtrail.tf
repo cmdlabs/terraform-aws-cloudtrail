@@ -24,17 +24,6 @@ data "aws_caller_identity" "master" {
   provider = aws.master
 }
 
-data "terraform_remote_state" "globals" {
-  backend   = "s3"
-  workspace = "global"
-  config = {
-    bucket  = "${var.global_state_bucket}"
-    key     = "${var.global_state_key}"
-    region  = "${var.global_state_region}"
-    profile = "${var.global_state_profile}"
-  }
-}
-
 resource "aws_kms_alias" "cloudtrail" {
   provider = aws.master
 
@@ -105,7 +94,7 @@ resource "aws_kms_key" "cloudtrail" {
       "Action": "kms:GenerateDataKey*",
       "Condition": {
         "ForAllValues:StringLike": {
-          "kms:EncryptionContext:aws:cloudtrail:arn": ${jsonencode([for id in data.terraform_remote_state.globals.outputs.aws_account_ids : join("", ["arn:aws:cloudtrail:*:", id, ":trail/*"])])}
+          "kms:EncryptionContext:aws:cloudtrail:arn": ${jsonencode([for id in var.account_ids : join("", ["arn:aws:cloudtrail:*:", id, ":trail/*"])])}
         }
       },
       "Effect": "Allow",
@@ -121,7 +110,7 @@ resource "aws_kms_key" "cloudtrail" {
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam::${data.terraform_remote_state.globals.outputs.aws_account_ids.master}:root"
+          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:root"
         ]
       },
       "Action": [
@@ -138,7 +127,7 @@ resource "aws_kms_key" "cloudtrail" {
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam::${data.terraform_remote_state.globals.outputs.aws_account_ids.master}:root"
+          "arn:aws:iam::${data.aws_caller_identity.master.account_id}:root"
         ]
       },
       "Action": [
@@ -165,14 +154,14 @@ resource "aws_kms_key" "s3" {
 resource "aws_kms_alias" "s3" {
   provider = aws.master
 
-  name = "alias/s3"
+  name          = "alias/s3"
   target_key_id = "${aws_kms_key.s3.key_id}"
 }
 
 resource "aws_s3_bucket" "main" {
   provider = aws.audit
 
-  bucket = "s3-${var.client_name}-cloudtrail"
+  bucket        = "s3-${var.client_name}-cloudtrail"
   force_destroy = true
   versioning {
     enabled = true
@@ -181,7 +170,7 @@ resource "aws_s3_bucket" "main" {
     rule {
       apply_server_side_encryption_by_default {
         kms_master_key_id = "${aws_kms_alias.s3.arn}"
-        sse_algorithm = "aws:kms"
+        sse_algorithm     = "aws:kms"
       }
     }
   }
